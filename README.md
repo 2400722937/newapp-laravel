@@ -1,26 +1,28 @@
 <p align="center">
-    <img alt="Laravel MCP Logo Light Mode" src="/art/logo-light-mode.svg#gh-light-mode-only"/>
-    <img alt="Laravel MCP Logo Dark Mode" src="/art/logo-dark-mode.svg#gh-dark-mode-only"/>
+    <img alt="Prompts Logo Dark Mode" src="/art/prompts-light.svg#gh-light-mode-only"/>
+    <img alt="Prompts Logo Dark Mode" src="/art/prompts-dark.svg#gh-dark-mode-only"/>
 </p>
 
 <p align="center">
-<a href="https://github.com/laravel/mcp/actions/workflows/tests.yml"><img src="https://github.com/laravel/mcp/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-<a href="https://packagist.org/packages/laravel/mcp"><img src="https://img.shields.io/packagist/dt/laravel/mcp" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/mcp"><img src="https://img.shields.io/packagist/v/laravel/mcp" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/mcp"><img src="https://img.shields.io/packagist/l/laravel/mcp" alt="License"></a>
+<a href="https://github.com/laravel/prompts/actions"><img src="https://github.com/laravel/prompts/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/prompts"><img src="https://img.shields.io/packagist/dt/laravel/prompts" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/prompts"><img src="https://img.shields.io/packagist/v/laravel/prompts" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/prompts"><img src="https://img.shields.io/packagist/l/laravel/prompts" alt="License"></a>
 </p>
 
 ## Introduction
 
-Laravel MCP allows you to rapidly build MCP servers for your Laravel applications. MCP servers allow AI clients to interact with your Laravel application through the [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro).
+Laravel Prompts is a PHP package for adding beautiful and user-friendly forms to your command-line applications, with browser-like features including placeholder text and validation.
+
+Laravel Prompts is perfect for accepting user input in your [Artisan console commands](https://laravel.com/docs/artisan#writing-commands), but it may also be used in any command-line PHP project.
 
 ## Official Documentation
 
-Documentation for Laravel MCP can be found on the [Laravel website](https://laravel.com/docs/mcp).
+Documentation for Laravel Prompts can be found on the [Laravel website](https://laravel.com/docs/prompts).
 
 ## Contributing
 
-Thank you for considering contributing to Laravel MCP! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Thank you for considering contributing to Laravel Prompts! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
 ## Code of Conduct
 
@@ -28,8 +30,8 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 ## Security Vulnerabilities
 
-Please review [our security policy](https://github.com/laravel/mcp/security/policy) on how to report security vulnerabilities.
+Please review [our security policy](https://github.com/laravel/prompts/security/policy) on how to report security vulnerabilities.
 
 ## License
 
-Laravel MCP is open-sourced software licensed under the [MIT license](LICENSE.md).
+Laravel Prompts is open-sourced software licensed under the [MIT license](LICENSE.md).

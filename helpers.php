@@ -1,528 +1,476 @@
 <?php
 
-use Carbon\CarbonInterval;
-use Illuminate\Contracts\Support\DeferringDisplayableValue;
-use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Env;
-use Illuminate\Support\Fluent;
-use Illuminate\Support\HigherOrderTapProxy;
-use Illuminate\Support\Once;
-use Illuminate\Support\Onceable;
-use Illuminate\Support\Optional;
-use Illuminate\Support\Sleep;
-use Illuminate\Support\Str;
-use Illuminate\Support\Stringable as SupportStringable;
+namespace Laravel\Prompts;
 
-if (! function_exists('append_config')) {
+use Closure;
+use Illuminate\Support\Collection;
+use Laravel\Prompts\Elements\ElementContract;
+
+if (! function_exists('\Laravel\Prompts\text')) {
     /**
-     * Assign high numeric IDs to a config item to force appending.
-     *
-     * @param  array  $array
+     * Prompt the user for text input.
      */
-    function append_config(array $array): array
-    {
-        $start = 9999;
-
-        foreach ($array as $key => $value) {
-            if (is_numeric($key)) {
-                $start++;
-
-                $array[$start] = Arr::pull($array, $key);
-            }
-        }
-
-        return $array;
+    function text(
+        string $label,
+        string $placeholder = '',
+        string $default = '',
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        ?Closure $transform = null,
+    ): string {
+        return (new TextPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('blank')) {
+if (! function_exists('\Laravel\Prompts\autocomplete')) {
     /**
-     * Determine if the given value is "blank".
+     * Prompt the user for text input with auto-completion.
      *
-     * @phpstan-assert-if-false !=null|'' $value
-     *
-     * @phpstan-assert-if-true !=numeric|bool $value
-     *
-     * @param  mixed  $value
+     * @param  array<string>|Collection<int, string>|Closure(string): (array<string>|Collection<int, string>)  $options
      */
-    function blank($value): bool
-    {
-        if (is_null($value)) {
-            return true;
-        }
-
-        if (is_string($value)) {
-            return trim($value) === '';
-        }
-
-        if (is_numeric($value) || is_bool($value)) {
-            return false;
-        }
-
-        if ($value instanceof Model) {
-            return false;
-        }
-
-        if ($value instanceof Countable) {
-            return count($value) === 0;
-        }
-
-        if ($value instanceof Stringable) {
-            return trim((string) $value) === '';
-        }
-
-        return empty($value);
+    function autocomplete(
+        string $label,
+        array|Collection|Closure $options = [],
+        string $placeholder = '',
+        string $default = '',
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        ?Closure $transform = null,
+    ): string {
+        return (new AutoCompletePrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('class_basename')) {
+if (! function_exists('\Laravel\Prompts\number')) {
     /**
-     * Get the class "basename" of the given object / class.
-     *
-     * @param  string|object  $class
+     * Prompt the user for number input.
      */
-    function class_basename($class): string
+    function number(string $label, string $placeholder = '', string $default = '', bool|string $required = false, mixed $validate = null, string $hint = '', ?int $min = null, ?int $max = null, ?int $step = null): int|string
     {
-        $class = is_object($class) ? get_class($class) : $class;
-
-        return basename(str_replace('\\', '/', $class));
+        return (new NumberPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('class_uses_recursive')) {
+if (! function_exists('\Laravel\Prompts\textarea')) {
     /**
-     * Returns all traits used by a class, its parent classes and trait of their traits.
-     *
-     * @param  object|string  $class
-     * @return array<string, string>
+     * Prompt the user for multiline text input.
      */
-    function class_uses_recursive($class): array
-    {
-        if (is_object($class)) {
-            $class = get_class($class);
-        }
-
-        $results = [];
-
-        foreach (array_reverse(class_parents($class) ?: []) + [$class => $class] as $class) {
-            $results += trait_uses_recursive($class);
-        }
-
-        return array_unique($results);
+    function textarea(
+        string $label,
+        string $placeholder = '',
+        string $default = '',
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        int $rows = 5,
+        ?Closure $transform = null,
+    ): string {
+        return (new TextareaPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('e')) {
+if (! function_exists('\Laravel\Prompts\password')) {
     /**
-     * Encode HTML special characters in a string.
-     *
-     * @param  \Illuminate\Contracts\Support\DeferringDisplayableValue|\Illuminate\Contracts\Support\Htmlable|\BackedEnum|string|int|float|null  $value
-     * @param  bool  $doubleEncode
+     * Prompt the user for input, hiding the value.
      */
-    function e($value, $doubleEncode = true): string
-    {
-        if ($value instanceof DeferringDisplayableValue) {
-            $value = $value->resolveDisplayableValue();
-        }
-
-        if ($value instanceof Htmlable) {
-            return $value->toHtml() ?? '';
-        }
-
-        if ($value instanceof BackedEnum) {
-            $value = $value->value;
-        }
-
-        return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', $doubleEncode);
+    function password(
+        string $label,
+        string $placeholder = '',
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        ?Closure $transform = null,
+    ): string {
+        return (new PasswordPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('env')) {
+if (! function_exists('\Laravel\Prompts\select')) {
     /**
-     * Gets the value of an environment variable.
+     * Prompt the user to select an option.
      *
-     * @param  string  $key
-     * @param  mixed  $default
-     * @return mixed
+     * @param  array<int|string, string>|Collection<int|string, string>  $options
+     * @param  true|string  $required
      */
-    function env($key, $default = null)
-    {
-        return Env::get($key, $default);
+    function select(
+        string $label,
+        array|Collection $options,
+        int|string|null $default = null,
+        int $scroll = 5,
+        mixed $validate = null,
+        string $hint = '',
+        bool|string $required = true,
+        ?Closure $transform = null,
+        string|Closure $info = '',
+    ): int|string {
+        return (new SelectPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('filled')) {
+if (! function_exists('\Laravel\Prompts\multiselect')) {
     /**
-     * Determine if a value is "filled".
+     * Prompt the user to select multiple options.
      *
-     * @phpstan-assert-if-true !=null|'' $value
-     *
-     * @phpstan-assert-if-false !=numeric|bool $value
-     *
-     * @param  mixed  $value
+     * @param  array<int|string, string>|Collection<int|string, string>  $options
+     * @param  array<int|string>|Collection<int, int|string>  $default
+     * @return array<int|string>
      */
-    function filled($value): bool
-    {
-        return ! blank($value);
+    function multiselect(
+        string $label,
+        array|Collection $options,
+        array|Collection $default = [],
+        int $scroll = 5,
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = 'Use the space bar to select options.',
+        ?Closure $transform = null,
+        string|Closure $info = '',
+    ): array {
+        return (new MultiSelectPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('fluent')) {
+if (! function_exists('\Laravel\Prompts\confirm')) {
     /**
-     * Create a Fluent object from the given value.
-     *
-     * @param  iterable|object|null  $value
+     * Prompt the user to confirm an action.
      */
-    function fluent($value = null): Fluent
-    {
-        return new Fluent($value ?? []);
+    function confirm(
+        string $label,
+        bool $default = true,
+        string $yes = 'Yes',
+        string $no = 'No',
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        ?Closure $transform = null,
+    ): bool {
+        return (new ConfirmPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('literal')) {
+if (! function_exists('\Laravel\Prompts\pause')) {
     /**
-     * Return a new literal or anonymous object using named arguments.
-     *
-     * @return mixed
+     * Prompt the user to continue or cancel after pausing.
      */
-    function literal(...$arguments)
+    function pause(string $message = 'Press enter to continue...'): bool
     {
-        if (count($arguments) === 1 && array_is_list($arguments)) {
-            return $arguments[0];
-        }
-
-        return (object) $arguments;
+        return (new PausePrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('object_get')) {
+if (! function_exists('\Laravel\Prompts\clear')) {
     /**
-     * Get an item from an object using "dot" notation.
-     *
-     * @template TValue of object
-     *
-     * @param  TValue  $object
-     * @param  string|null  $key
-     * @param  mixed  $default
-     * @return ($key is empty ? TValue : mixed)
+     * Clear the terminal.
      */
-    function object_get($object, $key, $default = null)
+    function clear(): void
     {
-        if (is_null($key) || trim($key) === '') {
-            return $object;
-        }
-
-        foreach (explode('.', $key) as $segment) {
-            if (! is_object($object) || ! isset($object->{$segment})) {
-                return value($default);
-            }
-
-            $object = $object->{$segment};
-        }
-
-        return $object;
+        (new Clear)->display();
     }
 }
 
-if (! function_exists('laravel_cloud')) {
+if (! function_exists('\Laravel\Prompts\suggest')) {
     /**
-     * Determine if the application is running on Laravel Cloud.
+     * Prompt the user for text input with auto-completion.
+     *
+     * @param  array<string>|Collection<int, string>|Closure(string): array<string>  $options
      */
-    function laravel_cloud(): bool
-    {
-        return ($_ENV['LARAVEL_CLOUD'] ?? false) === '1' ||
-            ($_SERVER['LARAVEL_CLOUD'] ?? false) === '1';
+    function suggest(
+        string $label,
+        array|Collection|Closure $options,
+        string $placeholder = '',
+        string $default = '',
+        int $scroll = 5,
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = '',
+        ?Closure $transform = null,
+        string|Closure $info = '',
+    ): string {
+        return (new SuggestPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('once')) {
+if (! function_exists('\Laravel\Prompts\search')) {
     /**
-     * Ensures a callable is only called once, and returns the result on subsequent calls.
+     * Allow the user to search for an option.
      *
-     * @template  TReturnType
-     *
-     * @param  callable(): TReturnType  $callback
-     * @return TReturnType
+     * @param  Closure(string): array<int|string, string>  $options
+     * @param  true|string  $required
      */
-    function once(callable $callback)
-    {
-        $onceable = Onceable::tryFromTrace(
-            debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2),
-            $callback,
-        );
-
-        return $onceable ? Once::instance()->value($onceable) : call_user_func($callback);
+    function search(
+        string $label,
+        Closure $options,
+        string $placeholder = '',
+        int $scroll = 5,
+        mixed $validate = null,
+        string $hint = '',
+        bool|string $required = true,
+        ?Closure $transform = null,
+        string|Closure $info = '',
+    ): int|string {
+        return (new SearchPrompt(...get_defined_vars()))->prompt();
     }
 }
 
-if (! function_exists('optional')) {
+if (! function_exists('\Laravel\Prompts\multisearch')) {
     /**
-     * Provide access to optional objects.
+     * Allow the user to search for multiple option.
      *
-     * @template TValue
+     * @param  Closure(string): array<int|string, string>  $options
+     * @return array<int|string>
+     */
+    function multisearch(
+        string $label,
+        Closure $options,
+        string $placeholder = '',
+        int $scroll = 5,
+        bool|string $required = false,
+        mixed $validate = null,
+        string $hint = 'Use the space bar to select options.',
+        ?Closure $transform = null,
+        string|Closure $info = '',
+    ): array {
+        return (new MultiSearchPrompt(...get_defined_vars()))->prompt();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\spin')) {
+    /**
+     * Render a spinner while the given callback is executing.
+     *
+     * @template TReturn of mixed
+     *
+     * @param  Closure(): TReturn  $callback
+     * @return TReturn
+     */
+    function spin(Closure $callback, string $message = ''): mixed
+    {
+        return (new Spinner($message))->spin($callback);
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\note')) {
+    /**
+     * Display a note.
+     */
+    function note(string $message, ?string $type = null): void
+    {
+        (new Note($message, $type))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\callout')) {
+    /**
+     * Display a callout.
+     *
+     * @param  string|list<string|ElementContract>  $content
+     */
+    function callout(string $label, string|array $content, ?string $type = null, string $info = ''): void
+    {
+        (new Callout($label, $content, $type, $info))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\error')) {
+    /**
+     * Display an error.
+     */
+    function error(string $message): void
+    {
+        (new Note($message, 'error'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\warning')) {
+    /**
+     * Display a warning.
+     */
+    function warning(string $message): void
+    {
+        (new Note($message, 'warning'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\alert')) {
+    /**
+     * Display an alert.
+     */
+    function alert(string $message): void
+    {
+        (new Note($message, 'alert'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\info')) {
+    /**
+     * Display an informational message.
+     */
+    function info(string $message): void
+    {
+        (new Note($message, 'info'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\intro')) {
+    /**
+     * Display an introduction.
+     */
+    function intro(string $message): void
+    {
+        (new Note($message, 'intro'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\outro')) {
+    /**
+     * Display a closing message.
+     */
+    function outro(string $message): void
+    {
+        (new Note($message, 'outro'))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\notify')) {
+    /**
+     * Send a notification to the user. (macOS and Linux only)
+     *
+     * The icon option is Linux only. The subtitle and sound options are macOS only.
+     *
+     * @param  string  $subtitle  macOS only
+     * @param  string  $sound  macOS only
+     * @param  string  $icon  Linux only
+     */
+    function notify(string $title, string $body = '', string $subtitle = '', string $sound = '', string $icon = ''): void
+    {
+        (new NotifyPrompt(...get_defined_vars()))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\table')) {
+    /**
+     * Display a table.
+     *
+     * @param  array<int, string|array<int, string>>|Collection<int, string|array<int, string>>  $headers
+     * @param  array<int, array<int, string>>|Collection<int, array<int, string>>  $rows
+     */
+    function table(array|Collection $headers = [], array|Collection|null $rows = null): void
+    {
+        (new Table($headers, $rows))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\grid')) {
+    /**
+     * Display a grid.
+     *
+     * @param  array<int, string>|Collection<int, string>  $items
+     */
+    function grid(array|Collection $items = [], ?int $maxWidth = null): void
+    {
+        (new Grid($items, $maxWidth))->display();
+    }
+}
+
+if (! function_exists('\Laravel\Prompts\progress')) {
+    /**
+     * Display a progress bar.
+     *
+     * @template TSteps of iterable<mixed>|int
      * @template TReturn
      *
-     * @param  TValue  $value
-     * @param  (callable(TValue): TReturn)|null  $callback
-     * @return ($callback is null ? \Illuminate\Support\Optional : ($value is null ? null : TReturn))
+     * @param  TSteps  $steps
+     * @param  ?Closure((TSteps is int ? int : value-of<TSteps>), Progress<TSteps>): TReturn  $callback
+     * @return ($callback is null ? Progress<TSteps> : array<TReturn>)
      */
-    function optional($value = null, ?callable $callback = null)
-    {
-        if (is_null($callback)) {
-            return new Optional($value);
-        } elseif (! is_null($value)) {
-            return $callback($value);
-        }
-    }
-}
+    function progress(
+        string $label,
+        iterable|int $steps,
+        ?Closure $callback = null,
+        string $hint = '',
+    ): array|Progress {
+        $progress = new Progress($label, $steps, $hint);
 
-if (! function_exists('preg_replace_array')) {
-    /**
-     * Replace a given pattern with each value in the array in sequentially.
-     *
-     * @param  string  $pattern
-     * @param  array  $replacements
-     * @param  string  $subject
-     */
-    function preg_replace_array($pattern, array $replacements, $subject): string
-    {
-        return preg_replace_callback($pattern, function () use (&$replacements) {
-            return array_shift($replacements);
-        }, $subject);
-    }
-}
-
-if (! function_exists('retry')) {
-    /**
-     * Retry an operation a given number of times.
-     *
-     * @template TValue
-     *
-     * @param  int|array<int, int>  $times
-     * @param  callable(int): TValue  $callback
-     * @param  CarbonInterval|int|\Closure(int, \Throwable): CarbonInterval|int  $sleepMilliseconds
-     * @param  (callable(\Throwable): bool)|null  $when
-     * @return TValue
-     *
-     * @throws \Throwable
-     */
-    function retry($times, callable $callback, $sleepMilliseconds = 0, $when = null)
-    {
-        $attempts = 0;
-
-        $backoff = [];
-
-        if (is_array($times)) {
-            $backoff = $times;
-
-            $times = count($times) + 1;
+        if ($callback !== null) {
+            return $progress->map($callback);
         }
 
-        beginning:
-        $attempts++;
-        $times--;
-
-        try {
-            return $callback($attempts);
-        } catch (Throwable $e) {
-            if ($times < 1 || ($when && ! $when($e))) {
-                throw $e;
-            }
-
-            $sleepMilliseconds = $backoff[$attempts - 1] ?? $sleepMilliseconds;
-
-            if ($sleepMilliseconds) {
-                $duration = value($sleepMilliseconds, $attempts, $e);
-
-                $duration instanceof CarbonInterval
-                    ? Sleep::usleep($duration->totalMicroseconds)
-                    : Sleep::usleep($duration * 1000);
-            }
-
-            goto beginning;
-        }
+        return $progress;
     }
 }
 
-if (! function_exists('str')) {
-    /**
-     * Get a new stringable object from the given string.
-     *
-     * @param  string|null  $string
-     * @return ($string is null ? object : \Illuminate\Support\Stringable)
-     */
-    function str($string = null)
+if (! function_exists('\Laravel\Prompts\form')) {
+    function form(): FormBuilder
     {
-        if (func_num_args() === 0) {
-            return new class
-            {
-                public function __call($method, $parameters)
-                {
-                    return Str::$method(...$parameters);
-                }
-
-                public function __toString()
-                {
-                    return '';
-                }
-            };
-        }
-
-        return new SupportStringable($string);
+        return new FormBuilder;
     }
 }
 
-if (! function_exists('tap')) {
+if (! function_exists('\Laravel\Prompts\title')) {
     /**
-     * Call the given Closure with the given value then return the value.
-     *
-     * @template TValue
-     *
-     * @param  TValue  $value
-     * @param  (callable(TValue): mixed)|null  $callback
-     * @return ($callback is null ? \Illuminate\Support\HigherOrderTapProxy : TValue)
+     * Update the title of the terminal.
      */
-    function tap($value, $callback = null)
+    function title(string $title): void
     {
-        if (is_null($callback)) {
-            return new HigherOrderTapProxy($value);
-        }
-
-        $callback($value);
-
-        return $value;
+        (new Title($title))->display();
     }
 }
 
-if (! function_exists('throw_if')) {
+if (! function_exists('\Laravel\Prompts\stream')) {
     /**
-     * Throw the given exception if the given condition is true.
-     *
-     * @template TValue
-     * @template TParams of mixed
-     * @template TException of \Throwable
-     * @template TExceptionValue of TException|class-string<TException>|string
-     *
-     * @param  TValue  $condition
-     * @param  Closure(TParams): TExceptionValue|TExceptionValue  $exception
-     * @param  TParams  ...$parameters
-     * @return ($condition is true ? never : ($condition is non-empty-mixed ? never : TValue))
-     *
-     * @throws TException
+     * Display a stream of text.
      */
-    function throw_if($condition, $exception = 'RuntimeException', ...$parameters)
+    function stream(): Stream
     {
-        if ($condition) {
-            if ($exception instanceof Closure) {
-                $exception = $exception(...$parameters);
-            }
-
-            if (is_string($exception) && class_exists($exception)) {
-                $exception = new $exception(...$parameters);
-            }
-
-            throw is_string($exception) ? new RuntimeException($exception) : $exception;
-        }
-
-        return $condition;
+        return new Stream;
     }
 }
 
-if (! function_exists('throw_unless')) {
+if (! function_exists('\Laravel\Prompts\task')) {
     /**
-     * Throw the given exception unless the given condition is true.
+     * Display a task with a spinner and live output.
      *
-     * @template TValue
-     * @template TParams of mixed
-     * @template TException of \Throwable
-     * @template TExceptionValue of TException|class-string<TException>|string
+     * @template TReturn of mixed
      *
-     * @param  TValue  $condition
-     * @param  Closure(TParams): TExceptionValue|TExceptionValue  $exception
-     * @param  TParams  ...$parameters
-     * @return ($condition is false ? never : ($condition is non-empty-mixed ? TValue : never))
-     *
-     * @throws TException
+     * @param  Closure(Support\Logger): TReturn  $callback
+     * @return TReturn
      */
-    function throw_unless($condition, $exception = 'RuntimeException', ...$parameters)
+    function task(string $label, Closure $callback, ?int $limit = null, bool $keepSummary = false, ?string $subLabel = null): mixed
     {
-        throw_if(! $condition, $exception, ...$parameters);
-
-        return $condition;
+        return (new Task($label, $limit ?? 10, $keepSummary, $subLabel))->run($callback);
     }
 }
 
-if (! function_exists('trait_uses_recursive')) {
+if (! function_exists('\Laravel\Prompts\datatable')) {
     /**
-     * Returns all traits used by a trait and its traits.
+     * Display an interactive data table.
      *
-     * @param  object|string  $trait
-     * @return array<string, string>
+     * @param  array<int, string|array<int, string>>|Collection<int, string|array<int, string>>  $headers
+     * @param  array<int|string, array<int, string>>|Collection<int|string, array<int, string>>|null  $rows
      */
-    function trait_uses_recursive($trait): array
-    {
-        $traits = class_uses($trait) ?: [];
-
-        foreach ($traits as $trait) {
-            $traits += trait_uses_recursive($trait);
-        }
-
-        return $traits;
-    }
-}
-
-if (! function_exists('transform')) {
-    /**
-     * Transform the given value if it is present.
-     *
-     * @template TValue
-     * @template TReturn
-     * @template TDefault
-     *
-     * @param  TValue  $value
-     * @param  callable(TValue): TReturn  $callback
-     * @param  TDefault|callable(TValue): TDefault  $default
-     * @return ($value is empty ? TDefault : TReturn)
-     */
-    function transform($value, callable $callback, $default = null)
-    {
-        if (filled($value)) {
-            return $callback($value);
-        }
-
-        if (is_callable($default)) {
-            return $default($value);
-        }
-
-        return $default;
-    }
-}
-
-if (! function_exists('windows_os')) {
-    /**
-     * Determine whether the current environment is Windows based.
-     */
-    function windows_os(): bool
-    {
-        return PHP_OS_FAMILY === 'Windows';
-    }
-}
-
-if (! function_exists('with')) {
-    /**
-     * Return the given value, optionally passed through the given callback.
-     *
-     * @template TValue
-     * @template TReturn
-     *
-     * @param  TValue  $value
-     * @param  (callable(TValue): (TReturn))|null  $callback
-     * @return ($callback is null ? TValue : TReturn)
-     */
-    function with($value, ?callable $callback = null)
-    {
-        return is_null($callback) ? $value : $callback($value);
+    function datatable(
+        array|Collection $headers = [],
+        array|Collection|null $rows = null,
+        int $scroll = 10,
+        string $label = '',
+        string $hint = '',
+        bool|string $required = false,
+        mixed $validate = null,
+        ?Closure $transform = null,
+        ?Closure $filter = null,
+    ): mixed {
+        return (new DataTablePrompt(
+            headers: $headers,
+            rows: $rows,
+            scroll: $scroll,
+            label: $label,
+            hint: $hint,
+            required: $required,
+            validate: $validate,
+            transform: $transform,
+            filter: $filter,
+        ))->prompt();
     }
 }
