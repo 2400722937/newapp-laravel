@@ -1,54 +1,75 @@
 {
-    "name": "laravel/prompts",
-    "type": "library",
-    "description": "Add beautiful and user-friendly forms to your command-line applications.",
+    "name": "laravel/roster",
+    "description": "Detect packages & approaches in use within a Laravel project",
+    "keywords": [
+        "dev",
+        "laravel"
+    ],
+    "homepage": "https://github.com/laravel/roster",
     "license": "MIT",
+    "support": {
+        "issues": "https://github.com/laravel/roster/issues",
+        "source": "https://github.com/laravel/roster"
+    },
+    "require": {
+        "php": "^8.2",
+        "composer/semver": "^3.0",
+        "illuminate/console": "^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "symfony/yaml": "^7.2|^8.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.29",
+        "mockery/mockery": "^1.6",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.1",
+        "phpstan/phpstan": "^2.0",
+        "rector/rector": "^2.0"
+    },
     "autoload": {
         "psr-4": {
-            "Laravel\\Prompts\\": "src/"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
+            "Laravel\\Roster\\": "src/"
+        }
     },
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
         }
     },
-    "require": {
-        "php": "^8.1",
-        "ext-mbstring": "*",
-        "composer-runtime-api": "^2.2",
-        "symfony/console": "^6.2|^7.0|^8.0"
-    },
-    "require-dev": {
-        "illuminate/collections": "^10.0|^11.0|^12.0|^13.0",
-        "phpstan/phpstan": "^1.12.28",
-        "pestphp/pest": "^2.3|^3.4|^4.0",
-        "mockery/mockery": "^1.5",
-        "phpstan/phpstan-mockery": "^1.1.3"
-    },
-    "conflict": {
-        "illuminate/console": ">=10.17.0 <10.25.0",
-        "laravel/framework": ">=10.17.0 <10.25.0"
-    },
-    "suggest": {
-        "ext-pcntl": "Required for the spinner to be animated."
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Laravel\\Roster\\RosterServiceProvider"
+            ]
+        }
     },
     "config": {
-        "audit": {
-            "block-insecure": false
-        },
+        "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
     },
-    "extra": {
-        "branch-alias": {
-            "dev-main": "0.3.x-dev"
-        }
+    "scripts": {
+        "lint": [
+            "pint",
+            "rector"
+        ],
+        "test:lint": [
+            "pint --test",
+            "rector --dry-run"
+        ],
+        "test:unit": "pest --ci",
+        "test:types": "phpstan --no-progress",
+        "test": [
+            "@test:lint",
+            "@test:unit",
+            "@test:types"
+        ]
     },
-    "prefer-stable": true,
-    "minimum-stability": "dev"
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
