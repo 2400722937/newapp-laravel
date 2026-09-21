@@ -1,287 +1,226 @@
-# Laravel Roster
+# league/commonmark
 
-<p align="center">
-<a href="https://github.com/laravel/roster/actions"><img src="https://github.com/laravel/roster/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/roster"><img src="https://img.shields.io/packagist/dt/laravel/roster" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/roster"><img src="https://img.shields.io/packagist/v/laravel/roster" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/roster"><img src="https://img.shields.io/packagist/l/laravel/roster" alt="License"></a>
-</p>
+[![Latest Version](https://img.shields.io/packagist/v/league/commonmark.svg?style=flat-square)](https://packagist.org/packages/league/commonmark)
+[![Total Downloads](https://img.shields.io/packagist/dt/league/commonmark.svg?style=flat-square)](https://packagist.org/packages/league/commonmark)
+[![Software License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg?style=flat-square)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/thephpleague/commonmark/tests.yml?branch=main&style=flat-square)](https://github.com/thephpleague/commonmark/actions?query=workflow%3ATests+branch%3Amain)
+[![Coverage Status](https://img.shields.io/scrutinizer/coverage/g/thephpleague/commonmark.svg?style=flat-square)](https://scrutinizer-ci.com/g/thephpleague/commonmark/code-structure)
+[![Quality Score](https://img.shields.io/scrutinizer/g/thephpleague/commonmark.svg?style=flat-square)](https://scrutinizer-ci.com/g/thephpleague/commonmark)
+[![Psalm Type Coverage](https://shepherd.dev/github/thephpleague/commonmark/coverage.svg)](https://shepherd.dev/github/thephpleague/commonmark)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/126/badge)](https://bestpractices.coreinfrastructure.org/projects/126)
+[![Sponsor development of this project](https://img.shields.io/badge/sponsor%20this%20package-%E2%9D%A4-ff69b4.svg?style=flat-square)](https://www.colinodell.com/sponsor)
 
-- [Introduction](#introduction)
-- [Installation](#installation)
-- [Basic Usage](#basic-usage)
-- [Detecting Packages](#detecting-packages)
-    - [Version Constraints](#version-constraints)
-    - [Checking Multiple Packages](#checking-multiple-packages)
-    - [Retrieving Packages](#retrieving-packages)
-- [Detecting Stacks and Frontends](#detecting-stacks-and-frontends)
-- [Detecting Agents and Editors](#detecting-agents-and-editors)
-- [Detecting JS Package Managers](#detecting-js-package-managers)
-- [Detecting Approaches](#detecting-approaches)
-- [Caching](#caching)
-- [The `roster:scan` Command](#the-rosterscan-command)
-- [Upgrading](#upgrading)
-- [Contributing](#contributing)
-- [Code of Conduct](#code-of-conduct)
-- [Security Vulnerabilities](#security-vulnerabilities)
-- [License](#license)
+![league/commonmark](commonmark-banner.png)
 
-## Introduction
+**league/commonmark** is a highly-extensible PHP Markdown parser created by [Colin O'Dell][@colinodell] which supports the full [CommonMark] spec and [GitHub-Flavored Markdown].  It is based on the [CommonMark JS reference implementation][commonmark.js] by [John MacFarlane] \([@jgm]\).
 
-Laravel Roster is a detection package for the Laravel ecosystem. It reads your project's lockfiles and configuration markers and can optionally inspect source code to determine what the project uses.
+## 📦 Installation & Basic Usage
 
-The `Project` facade reports package dependencies, the application's stack and frontend, browser test frameworks, configured AI agents and editors, the JS package manager indicated by the committed lockfile, and conventions adopted by the codebase.
+This project requires PHP 7.4 or higher with the `mbstring` extension.  To install it via [Composer] simply run:
 
-## Installation
-
-You may install Roster as a development dependency via the Composer package manager:
-
-```bash
-composer require laravel/roster --dev
+``` bash
+$ composer require league/commonmark
 ```
 
-## Basic Usage
-
-Within a Laravel application, you may call the `Project` facade directly. The first call triggers a scan, and the result is reused by subsequent facade calls:
+The `CommonMarkConverter` class provides a simple wrapper for converting CommonMark to HTML:
 
 ```php
-use Laravel\Roster\Enums\Stack;
-use Laravel\Roster\Facades\Project;
+use League\CommonMark\CommonMarkConverter;
 
-Project::php()->uses('pestphp/pest');
-Project::stacks()->uses(Stack::InertiaReact);
-```
-
-Outside a Laravel service container, or when you want an explicit project instance, instantiate the manager directly. It runs without caching when no container or cache driver is available:
-
-```php
-use Laravel\Roster\ProjectManager;
-
-$projects = new ProjectManager;
-
-$project = $projects->scan(); // Uses base_path() or getcwd().
-$project = $projects->scan($basePath);
-```
-
-The following examples use `$project` for clarity, but the same calls are available through the facade.
-
-## Detecting Packages
-
-Packages are exposed through two ecosystems: `php()` for Composer packages and `js()` for JavaScript packages managed by npm, pnpm, Yarn, or Bun. Both ecosystems provide the same methods:
-
-```php
-$ecosystem->uses(string|array $packages, ?string $constraint = null): bool
-$ecosystem->usesAll(array $packages): bool
-```
-
-The `uses` method returns `true` when **any** of the given packages is present, while the `usesAll` method returns `true` only when **every** package is present. Use the package names that appear in `composer.json` or `package.json`:
-
-```php
-$project->php()->uses('pestphp/pest');
-$project->js()->uses('@inertiajs/react');
-```
-
-### Version Constraints
-
-You may pass a version constraint as the second argument to the `uses` method. It accepts any Composer Semver constraint, such as `^1.2.3`, `~1.2`, `>=11 <14`, or `1.0 || ^2.0`. A bare version such as `1.2.3` requires an exact match. When the constraint is omitted, only the package's presence is checked:
-
-```php
-$project->php()->uses('laravel/framework', '^12.0');
-$project->php()->uses('laravel/framework', '>=11 <14');
-```
-
-### Checking Multiple Packages
-
-To check whether **any** of several packages are present, you may pass an indexed array of names to the `uses` method. Pass an associative array to specify constraints for individual packages:
-
-```php
-$project->php()->uses(['pestphp/pest', 'phpunit/phpunit']);
-
-$project->php()->uses([
-    'pestphp/pest' => '^3.0',
-    'phpunit/phpunit' => '^10.0',
-]);
-```
-
-To require that **all** of several packages are present, you may use the `usesAll` method:
-
-```php
-$project->php()->usesAll(['pestphp/pest', 'laravel/framework']);
-
-$project->php()->usesAll([
-    'pestphp/pest' => '^3.0',
-    'laravel/framework' => '^11.0',
-]);
-```
-
-The JS ecosystem behaves the same way:
-
-```php
-$project->js()->uses(['vue' => '^3.0', 'react' => '^18.0']);
-$project->js()->usesAll(['vue', '@inertiajs/vue3']);
-```
-
-> [!WARNING]
-> The array passed to the `uses` and `usesAll` methods must be either entirely indexed (just names) or entirely associative (name to constraint). Mixing the two shapes throws an `InvalidArgumentException`.
-
-### Retrieving Packages
-
-You may also retrieve the underlying `Package` instance or collection. The `usesDirect` method checks whether a package is a *direct* dependency (declared in your manifest rather than pulled in transitively). When passed an array, it returns `true` if any listed package is direct. The collection provides `dev`, `production`, and `direct` filters:
-
-```php
-$project->php()->package('pestphp/pest')?->version();
-$project->js()->package('vue')?->major();
-$project->php()->usesDirect('livewire/livewire');
-$project->php()->usesDirect(['livewire/livewire', 'livewire/volt']);
-$project->php()->packages()->dev();
-$project->php()->packages()->direct();
-```
-
-> [!NOTE]
-> The development classification of *transitive* packages is available only for Composer and npm lockfiles. Yarn, pnpm, and Bun lockfiles report transitive packages as production dependencies. Direct dependencies are classified using authoritative lockfile metadata when available and manifest data otherwise.
-
-## Detecting Stacks and Frontends
-
-The `stacks`, `frontends`, and `browserTestFrameworks` methods on the `Project` surface return an `EnumSet` containing every detected case. You may invoke the `uses` method to check for membership, the `usesAll` method to require every given case, and the `all` method to retrieve every detected case:
-
-```php
-use Laravel\Roster\Enums\BrowserTestFramework;
-use Laravel\Roster\Enums\Frontend;
-use Laravel\Roster\Enums\Stack;
-
-$project->stacks()->uses(Stack::InertiaReact);
-$project->stacks()->all();                             // Stack[]
-
-$project->browserTestFrameworks()->uses(BrowserTestFramework::Playwright);
-$project->browserTestFrameworks()->uses([
-    BrowserTestFramework::Playwright,
-    BrowserTestFramework::Cypress,
-]);
-$project->browserTestFrameworks()->usesAll([
-    BrowserTestFramework::Playwright,
-    BrowserTestFramework::Cypress,
+$converter = new CommonMarkConverter([
+    'html_input' => 'strip',
+    'allow_unsafe_links' => false,
 ]);
 
-$project->frontends()->uses(Frontend::React);
+echo $converter->convert('# Hello World!');
+
+// <h1>Hello World!</h1>
 ```
 
-The `uses` method accepts either a single case or an array of cases and returns `true` when **any** case is present, while the `usesAll` method returns `true` only when **every** case is present.
-
-## Detecting Agents and Editors
-
-Agents (AI coding tools such as Claude Code, Cursor, and Codex) and editors (IDEs such as PhpStorm and VS Code) are exposed through separate enums. Roster detects them through filesystem markers such as `.claude`, `.cursor`, `.idea`, and `AGENTS.md`:
+Or if you want GitHub-Flavored Markdown, use the `GithubFlavoredMarkdownConverter` class instead:
 
 ```php
-use Laravel\Roster\Enums\Agent;
-use Laravel\Roster\Enums\Editor;
+use League\CommonMark\GithubFlavoredMarkdownConverter;
 
-$project->agents()->uses(Agent::ClaudeCode);
-$project->agents()->uses([Agent::ClaudeCode, Agent::Cursor]);
-$project->editors()->uses(Editor::PhpStorm);
-```
-
-## Detecting JS Package Managers
-
-The `$project->js()->packageManager()` method reports the package manager indicated by the project's lockfile as a nullable enum (`package-lock.json` indicates npm, `pnpm-lock.yaml` indicates pnpm, and so on):
-
-```php
-use Laravel\Roster\Enums\JsPackageManager;
-
-$project->js()->packageManager() === JsPackageManager::Pnpm;
-```
-
-You may also check for a specific package manager via the `usesPackageManager` method, which accepts an enum case or its string value:
-
-```php
-$project->js()->usesPackageManager(JsPackageManager::Pnpm);
-$project->js()->usesPackageManager('pnpm');
-```
-
-Projects should commit only one supported JavaScript lockfile. If multiple lockfiles are present, Roster selects the first match in this order: npm, pnpm, Yarn, then Bun.
-
-## Detecting Approaches
-
-The `approaches` method inspects the project's **own source code**, not its manifests, and reports which stylistic conventions the application has adopted:
-
-- `fillable` vs `guarded` mass assignment (including the `protected $fillable` property and `#[Fillable]` attribute)
-- enum case capitalization (`SCREAMING_SNAKE_CASE`, `PascalCase`, or `camelCase`)
-- pipe vs array validation-rule syntax
-- inline validation vs form requests (`$request->validate([...])` vs dedicated `rules()` classes under `Http/Requests`)
-- command configuration via the `#[AsCommand]` attribute vs the `$signature` or `$description` property
-- notifications sent via `$notifiable->notify()` vs the `Notification` facade
-- authorization via gates, `$user->can()`, or `$this->authorize()`
-- authenticated user retrieval via the `Auth` facade, `$request->user()`, or the `auth()` helper
-- model key style: UUID (`HasUuids`), ULID (`HasUlids`), or the default auto-incrementing key
-
-You may check for one or more approaches or retrieve all detected results:
-
-```php
-use Laravel\Roster\Enums\Approach;
-
-$project->approaches()->uses(Approach::MassAssignmentFillable);
-$project->approaches()->uses([
-    Approach::ValidationPipeSyntax,
-    Approach::ValidationArraySyntax,
+$converter = new GithubFlavoredMarkdownConverter([
+    'html_input' => 'strip',
+    'allow_unsafe_links' => false,
 ]);
-$project->approaches()->all(); // Collection<string, ApproachResult>
+
+echo $converter->convert('# Hello World!');
+
+// <h1>Hello World!</h1>
 ```
 
-Detection is best-effort: Roster uses lightweight pattern matching rather than a full parser, so an unusual file may abstain or be classified based on a comment or string literal. Approaches are therefore reported with a confidence ratio rather than as exact answers.
+Please note that only UTF-8 and ASCII encodings are supported.  If your Markdown uses a different encoding please convert it to UTF-8 before running it through this library.
 
-A stylistic approach is reported only when it receives at least three votes and at least 80% of the votes cast. Each file casts at most one vote, except that enum capitalization receives one vote per enum case. Consequently, a 2/3 majority is rejected, a 4/5 majority passes, and an evenly split codebase produces no result. A file that mixes styles votes for its majority style and abstains when tied.
+> [!CAUTION]
+> If you will be parsing untrusted input from users, please consider setting the `html_input` and `allow_unsafe_links` options per the example above. See <https://commonmark.thephpleague.com/security/> for more details. If you also do choose to allow raw HTML input from untrusted users, consider using a library (like [HTML Purifier](https://github.com/ezyang/htmlpurifier)) to provide additional HTML filtering.
 
-Each `ApproachResult` exposes the winning `approach`, its raw `confidence` ratio, the `matched` and `total` vote counts, and the `paths` of the files that voted. You may retrieve a result via the `result` method:
+## 📓 Documentation
 
-```php
-$result = $project->approaches()->result(Approach::MassAssignmentFillable);
+Full documentation on advanced usage, configuration, and customization can be found at [commonmark.thephpleague.com][docs].
 
-$result->confidence; // 0.9
-$result->matched;    // 9
-$result->total;      // 10
-$result->paths;      // ['/app/Models/User.php', ...]
+## ⏫ Upgrading
+
+Information on how to upgrade to newer versions of this library can be found at <https://commonmark.thephpleague.com/releases>.
+
+## 💻 GitHub-Flavored Markdown
+
+The `GithubFlavoredMarkdownConverter` shown earlier is a drop-in replacement for the `CommonMarkConverter` which adds additional features found in the GFM spec:
+
+ - Autolinks
+ - Disallowed raw HTML
+ - Strikethrough
+ - Tables
+ - Task Lists
+
+See the [Extensions documentation](https://commonmark.thephpleague.com/customization/extensions/) for more details on how to include only certain GFM features if you don't want them all.
+
+## 🗃️ Related Packages
+
+### Integrations
+
+- [CakePHP 3](https://github.com/gourmet/common-mark)
+- [Drupal](https://www.drupal.org/project/markdown)
+- [Laravel 4+](https://github.com/GrahamCampbell/Laravel-Markdown)
+- [Sculpin](https://github.com/bcremer/sculpin-commonmark-bundle)
+- [Symfony 2 & 3](https://github.com/webuni/commonmark-bundle)
+- [Symfony 4](https://github.com/avensome/commonmark-bundle)
+- [Twig Markdown extension](https://github.com/twigphp/markdown-extension)
+- [Twig filter and tag](https://github.com/aptoma/twig-markdown)
+- [Laravel CommonMark Blog](https://github.com/spekulatius/laravel-commonmark-blog)
+
+### Included Extensions
+
+See [our extension documentation](https://commonmark.thephpleague.com/extensions/overview) for a full list of extensions bundled with this library.
+
+### Community Extensions
+
+Custom parsers/renderers can be bundled into extensions which extend CommonMark.  Here are some that you may find interesting:
+
+ - [Emoji extension](https://github.com/ElGigi/CommonMarkEmoji) - UTF-8 emoji extension with Github tag.
+ - [Sup Sub extensions](https://github.com/OWS/commonmark-sup-sub-extensions) - Adds support of superscript and subscript (`<sup>` and `<sub>` HTML tags).
+ - [YouTube iframe extension](https://github.com/zoonru/commonmark-ext-youtube-iframe) - Replaces youtube link with iframe.
+ - [Lazy Image extension](https://github.com/simonvomeyser/commonmark-ext-lazy-image) - Adds various options for lazy loading of images.
+ - [Marker Extension](https://github.com/noah1400/commonmark-marker-extension) - Adds support of highlighted text (`<mark>` HTML tag).
+ - [Pygments Highlighter extension](https://github.com/DanielEScherzer/commonmark-ext-pygments-highlighter) - Adds support for highlighting code with the Pygments library.
+ - [LatexRenderer extension](https://github.com/samwilson/commonmark-latex) - For rendering Markdown to LaTeX.
+
+Others can be found on [Packagist under the `commonmark-extension` package type](https://packagist.org/packages/league/commonmark?type=commonmark-extension).
+
+If you build your own, feel free to submit a PR to add it to this list!
+
+### Others
+
+Check out the other cool things people are doing with `league/commonmark`: <https://packagist.org/packages/league/commonmark/dependents>
+
+## 🏷️ Versioning
+
+[SemVer](http://semver.org/) is followed closely. Minor and patch releases should not introduce breaking changes to the codebase; however, they might change the resulting AST or HTML output of parsed Markdown (due to bug fixes, spec changes, etc.)  As a result, you might get slightly different HTML, but any custom code built onto this library should still function correctly.
+
+Any classes or methods marked `@internal` are not intended for use outside of this library and are subject to breaking changes at any time, so please avoid using them.
+
+## 🛠️ Maintenance & Support
+
+When a new **minor** version (e.g. `2.0` -> `2.1`) is released, the previous one (`2.0`) will continue to receive security and critical bug fixes for *at least* 3 months.
+
+When a new **major** version is released (e.g. `1.6` -> `2.0`), the previous one (`1.6`) will receive critical bug fixes for *at least* 3 months and security updates for 6 months after that new release comes out.
+
+(This policy may change in the future and exceptions may be made on a case-by-case basis.)
+
+**Professional support, including notification of new releases and security updates, is available through a [Tidelift Subscription](https://tidelift.com/subscription/pkg/packagist-league-commonmark?utm_source=packagist-league-commonmark&utm_medium=referral&utm_campaign=readme).**
+
+## 👷‍♀️ Contributing
+
+To report a security vulnerability, please use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure with us.
+
+If you encounter a bug in the spec, please report it to the [CommonMark] project.  Any resulting fix will eventually be implemented in this project as well.
+
+Contributions to this library are **welcome**, especially ones that:
+
+ * Improve usability or flexibility without compromising our ability to adhere to the [CommonMark spec]
+ * Mirror fixes made to the [reference implementation][commonmark.js]
+ * Optimize performance
+ * Fix issues with adhering to the [CommonMark spec]
+
+Major refactoring to core parsing logic should be avoided if possible so that we can easily follow updates made to [the reference implementation][commonmark.js]. That being said, we will absolutely consider changes which don't deviate too far from the reference spec or which are favored by other popular CommonMark implementations.
+
+Please see [CONTRIBUTING](https://github.com/thephpleague/commonmark/blob/main/.github/CONTRIBUTING.md) for additional details.
+
+## 🧪 Testing
+
+``` bash
+$ composer test
 ```
 
-Roster discovers source files by combining the PSR-4 autoload roots in `composer.json` with `app/`. It matches subdirectories such as `Models/` anywhere beneath those roots, so it also scans modular layouts such as `src/Domain/Orders/Models/`. The `vendor/` and `node_modules/` directories, as well as hidden directories, are always excluded.
+This will also test league/commonmark against the latest supported spec.
 
-Because source files can change without affecting a lockfile, approaches are never persisted with a cached scan. They are computed lazily once per scan instance and only when requested. The `toArray()` and `json()` methods omit them, while the `roster:scan` command accepts an `--approaches` flag to include them in its output.
+## 🚀 Performance Benchmarks
 
-## Caching
+You can compare the performance of **league/commonmark** to other popular parsers by running the included benchmark tool:
 
-The first call through the `Project` facade scans the default project and memoizes the result for the remainder of the process. Across processes, Roster uses your application's configured cache driver. The cache key includes a hash of supported manifests and lockfiles, along with the presence of detector marker paths, so changes such as an edit to `composer.lock` or the addition of a `.claude` directory invalidate the persisted cache. Roster falls back to a direct scan when no cache driver is configured or the driver fails.
-
-In long-running processes such as Octane or queue workers, the memoized instance is kept until the worker restarts. You may call `Project::fresh()` to bypass both the memoized result and the persisted cache and force a new scan at any time.
-
-## The `roster:scan` Command
-
-The `roster:scan` Artisan command scans a directory and emits the project surface as a JSON document. When the directory is omitted, the application's base path is scanned:
-
-```bash
-php artisan roster:scan
-php artisan roster:scan /path/to/project
+``` bash
+$ ./tests/benchmark/benchmark.php
 ```
 
-You may pass `--approaches` to include approach detection for PHP files under the project's PSR-4 autoload roots and `app/` directory:
+## 👥 Credits & Acknowledgements
 
-```bash
-php artisan roster:scan /path/to/project --approaches
-```
+This code was originally based on the [CommonMark JS reference implementation][commonmark.js] which is written, maintained, and copyrighted by [John MacFarlane].  This project simply wouldn't exist without his work.
 
-## Upgrading
+And a huge thanks to all of our amazing contributors:
 
-Please consult the [upgrade guide](UPGRADE.md) when upgrading from 0.x.
+<a href="https://github.com/thephpleague/commonmark/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=thephpleague/commonmark" />
+</a>
 
-## Contributing
+### Sponsors
 
-Thank you for considering contributing to Roster! You can find the contribution guide in the [Laravel documentation](https://laravel.com/docs/contributions).
+We'd also like to extend our sincere thanks the following sponsors who support ongoing development of this project:
 
-## Code of Conduct
+ - [Tidelift](https://tidelift.com/subscription/pkg/packagist-league-commonmark?utm_source=packagist-league-commonmark&utm_medium=referral&utm_campaign=readme) for offering support to both the maintainers and end-users through their [professional support](https://tidelift.com/subscription/pkg/packagist-league-commonmark?utm_source=packagist-league-commonmark&utm_medium=referral&utm_campaign=readme) program
+ - [Blackfire](https://www.blackfire.io/) for providing an Open-Source Profiler subscription
+ - [JetBrains](https://www.jetbrains.com/) for supporting this project with complimentary [PhpStorm](https://www.jetbrains.com/phpstorm/) licenses
+ - [Anthropic](https://www.anthropic.com/) for providing complimentary access to Claude Max through their [Open Source Program](https://claude.com/contact-sales/claude-for-oss)
 
-To help ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Are you interested in sponsoring development of this project? See <https://www.colinodell.com/sponsor> for a list of ways to contribute.
 
-## Security Vulnerabilities
+## 📄 License
 
-Please review [our security policy](https://github.com/laravel/roster/security/policy) for instructions on reporting security vulnerabilities.
+**league/commonmark** is licensed under the BSD-3 license.  See the [`LICENSE`](LICENSE) file for more details.
 
-## License
+## 🏛️ Governance
 
-Laravel Roster is open-source software licensed under the [MIT license](LICENSE.md).
+This project is primarily maintained by [Colin O'Dell][@colinodell].  Members of the [PHP League] Leadership Team may occasionally assist with some of these duties.
+
+## 🗺️  Who Uses It?
+
+This project is used by [Drupal](https://www.drupal.org/project/markdown), [Laravel Framework](https://laravel.com/), [Cachet](https://cachethq.io/), [Firefly III](https://firefly-iii.org/), [Neos](https://www.neos.io/), [Daux.io](https://daux.io/), and [more](https://packagist.org/packages/league/commonmark/dependents)!
+
+---
+
+<div align="center">
+	<b>
+		<a href="https://tidelift.com/subscription/pkg/packagist-league-commonmark?utm_source=packagist-league-commonmark&utm_medium=referral&utm_campaign=readme">Get professional support for league/commonmark with a Tidelift subscription</a>
+	</b>
+	<br>
+	<sub>
+		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
+	</sub>
+</div>
+
+[CommonMark]: http://commonmark.org/
+[CommonMark spec]: http://spec.commonmark.org/
+[commonmark.js]: https://github.com/jgm/commonmark.js
+[GitHub-Flavored Markdown]: https://github.github.com/gfm/
+[John MacFarlane]: http://johnmacfarlane.net
+[docs]: https://commonmark.thephpleague.com/
+[docs-examples]: https://commonmark.thephpleague.com/customization/overview/#examples
+[docs-example-twitter]: https://commonmark.thephpleague.com/customization/inline-parsing#example-1---twitter-handles
+[docs-example-smilies]: https://commonmark.thephpleague.com/customization/inline-parsing#example-2---emoticons
+[All Contributors]: https://github.com/thephpleague/commonmark/contributors
+[@colinodell]: https://www.twitter.com/colinodell
+[@jgm]: https://github.com/jgm
+[jgm/stmd]: https://github.com/jgm/stmd
+[Composer]: https://getcomposer.org/
+[PHP League]: https://thephpleague.com
