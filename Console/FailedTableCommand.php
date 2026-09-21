@@ -7,29 +7,29 @@ use Symfony\Component\Console\Attribute\AsCommand;
 
 use function Illuminate\Filesystem\join_paths;
 
-#[AsCommand(name: 'make:queue-table', aliases: ['queue:table'])]
-class TableCommand extends MigrationGeneratorCommand
+#[AsCommand(name: 'make:queue-failed-table', aliases: ['queue:failed-table'])]
+class FailedTableCommand extends MigrationGeneratorCommand
 {
     /**
      * The console command name.
      *
      * @var string
      */
-    protected $name = 'make:queue-table';
+    protected $name = 'make:queue-failed-table';
 
     /**
      * The console command name aliases.
      *
      * @var array
      */
-    protected $aliases = ['queue:table'];
+    protected $aliases = ['queue:failed-table'];
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a migration for the queue jobs database table';
+    protected $description = 'Create a migration for the failed queue jobs database table';
 
     /**
      * Get the migration table name.
@@ -38,7 +38,7 @@ class TableCommand extends MigrationGeneratorCommand
      */
     protected function migrationTableName()
     {
-        return $this->laravel['config']['queue.connections.database.table'];
+        return $this->laravel['config']['queue.failed.table'];
     }
 
     /**
@@ -48,7 +48,7 @@ class TableCommand extends MigrationGeneratorCommand
      */
     protected function migrationStubFile()
     {
-        return __DIR__.'/stubs/jobs.stub';
+        return __DIR__.'/stubs/failed_jobs.stub';
     }
 
     /**
@@ -59,7 +59,7 @@ class TableCommand extends MigrationGeneratorCommand
      */
     protected function migrationExists($table)
     {
-        if ($table !== 'jobs') {
+        if ($table !== 'failed_jobs') {
             return parent::migrationExists($table);
         }
 
